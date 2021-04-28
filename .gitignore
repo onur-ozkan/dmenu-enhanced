@@ -54,6 +54,5 @@ dkms.conf
 # Other
 *.swp
 *.swo
-config.h
 dmenu
 stest

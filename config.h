@@ -6,7 +6,7 @@ static int min_width = 400;  /* minimum width when centered */
 static int fuzzy = 1;        /* -F  option; if 0, dmenu doesn't use fuzzy matching     */
 /* -fn option overrides fonts[0]; default X11 font or font set */
 static const char *fonts[] = {
-	"RobotoMono Nerd Font:size=11:antialias=true:autohint=true",
+	"RobotoMono Nerd Font:size=11.5:antialias=true:autohint=true",
 };
 
 static const char col_soft_black[]  = "#222222";

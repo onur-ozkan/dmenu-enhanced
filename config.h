@@ -9,7 +9,7 @@ static const char *fonts[] = {
 	"RobotoMono Nerd Font:size=11.5:antialias=true:autohint=true",
 };
 
-static const char col_soft_black[]  = "#191919";
+static const char col_soft_black[]  = "#212121";
 static const char col_gray[]  = "#313131";
 static const char col_dirty_white[] = "#eeeeee";
 static const char col_red[]         = "#d75f5f";

@@ -9,14 +9,14 @@ static const char *fonts[] = {
 	"RobotoMono Nerd Font:size=11.5:antialias=true:autohint=true",
 };
 
-static const char col_soft_black[]  = "#222222";
+static const char col_soft_black[]  = "#191919";
 static const char col_gray[]  = "#313131";
-static const char col_dirty_white[] = "#e3e3e3";
+static const char col_dirty_white[] = "#eeeeee";
 static const char col_red[]         = "#d75f5f";
 static const char col_dark_yellow[] = "#f7ca88";
-static const char col_white[]       = "#f5f5f5";
+static const char col_white[]       = "#eeeeee";
 static const char col_green[]       = "#87af5f";
-static const char col_blue[]        = "#87afd7";
+static const char col_blue[]        = "#8197bf";
 static const char *prompt      = NULL;      /* -p  option; prompt to the left of input field */
 static const char *colors[SchemeLast][2] = {
 	/*     fg         bg       */

@@ -1,6 +1,8 @@
 # dmenu - dynamic menu
 # See LICENSE file for copyright and license details.
 
+.SILENT:
+
 include config.mk
 
 SRC = drw.c dmenu.c stest.c util.c
@@ -63,5 +65,21 @@ uninstall:
 		$(DESTDIR)$(MANPREFIX)/man1/stest.1
 	rm -f /usr/share/fonts/robotomono-nerd/robotomono-nerd-medium.ttf
 
+indent:
+	indent --blank-lines-after-procedures --brace-indent0 --indent-level4 \
+		--no-space-after-casts --no-space-after-function-call-names \
+		--dont-break-procedure-type --format-all-comments \
+		--line-length100 --comment-line-length100 --tab-size4 *.{c,h}
 
-.PHONY: all options clean dist install uninstall
+check-indentation:
+	$(eval SOURCES := $(shell ls *.{c,h}))
+	for i in $(SOURCES); do \
+		export DIFFS=$$(diff $$i <(indent -st -bap -bli0 -i4 -ncs -npcs -npsl -fca -l100 -lc100 -ts4 $$i)); \
+		if [ -z "$$DIFFS" ]; then echo -e "\033[0;32mValid indentation format -> $$i\033[0m"; else echo -e "\033[0;31mInvalid indentation format -> $$i\033[0m"; fi \
+	done
+
+check:
+	@echo Checking indentation standards
+	$(MAKE) check-indentation
+
+.PHONY: all options clean dist install uninstall indent check-indentation check

@@ -1,5 +1,6 @@
 /* See LICENSE file for copyright and license details. */
 #include <stdio.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <X11/Xlib.h>
@@ -143,6 +144,8 @@ static Fnt *xfont_create(Drw * drw, const char *fontname, FcPattern * fontpatter
 	FcBool iscol;
 	if (FcPatternGetBool(xfont->pattern, FC_COLOR, 0, &iscol) == FcResultMatch && iscol)
 	{
+		if (pattern)
+			FcPatternDestroy(pattern);
 		XftFontClose(drw->dpy, xfont);
 		return NULL;
 	}
@@ -234,7 +237,7 @@ void drw_setscheme(Drw * drw, Clr * scm)
 
 void drw_rect(Drw * drw, int x, int y, unsigned int w, unsigned int h, int filled, int invert)
 {
-	if (!drw || !drw->scheme)
+	if (!drw || !drw->scheme || !w || !h)
 		return;
 	XSetForeground(drw->dpy, drw->gc, invert ? drw->scheme[ColBg].pixel : drw->scheme[ColFg].pixel);
 	if (filled)
@@ -247,12 +250,12 @@ int
 drw_text(Drw * drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad,
 		 const char *text, int invert)
 {
-	char buf[1024];
+	char buf[64 + UTF_SIZ + 3];
 	int ty;
-	unsigned int ew;
+	unsigned int ew, ellipsisw;
 	XftDraw *d = NULL;
 	Fnt *usedfont, *curfont, *nextfont;
-	size_t i, len;
+	size_t len;
 	int utf8strlen, utf8charlen, render = x || y || w || h;
 	long utf8codepoint = 0;
 	const char *utf8str;
@@ -260,6 +263,7 @@ drw_text(Drw * drw, int x, int y, unsigned int w, unsigned int h, unsigned int l
 	FcPattern *fcpattern;
 	FcPattern *match;
 	XftResult result;
+	XRectangle clip;
 	int charexists = 0;
 
 	if (!drw || (render && !drw->scheme) || !text || !drw->fonts)
@@ -271,11 +275,20 @@ drw_text(Drw * drw, int x, int y, unsigned int w, unsigned int h, unsigned int l
 	}
 	else
 	{
+		if (!w || !h)
+			return x + w;
 		XSetForeground(drw->dpy, drw->gc, drw->scheme[invert ? ColFg : ColBg].pixel);
 		XFillRectangle(drw->dpy, drw->drawable, drw->gc, x, y, w, h);
+		if (w <= lpad)
+			return x + w;
 		d = XftDrawCreate(drw->dpy, drw->drawable,
 						  DefaultVisual(drw->dpy, drw->screen),
 						  DefaultColormap(drw->dpy, drw->screen));
+		clip.x = x;
+		clip.y = y;
+		clip.width = w;
+		clip.height = h;
+		XftDrawSetClipRectangles(d, 0, 0, &clip, 1);
 		x += lpad;
 		w -= lpad;
 	}
@@ -286,7 +299,7 @@ drw_text(Drw * drw, int x, int y, unsigned int w, unsigned int h, unsigned int l
 		utf8strlen = 0;
 		utf8str = text;
 		nextfont = NULL;
-		while (*text)
+		while (*text && utf8strlen < 64)
 		{
 			utf8charlen = utf8decode(text, &utf8codepoint, UTF_SIZ);
 			for (curfont = drw->fonts; curfont; curfont = curfont->next)
@@ -316,33 +329,47 @@ drw_text(Drw * drw, int x, int y, unsigned int w, unsigned int h, unsigned int l
 		if (utf8strlen)
 		{
 			drw_font_getexts(usedfont, utf8str, utf8strlen, &ew, NULL);
-			/* shorten text if necessary */
-			for (len = MIN(utf8strlen, sizeof(buf) - 1); len && ew > w; len--)
-				drw_font_getexts(usedfont, utf8str, len, &ew, NULL);
-
-			if (len)
+			len = utf8strlen;
+			if (render && ew > w)
 			{
-				memcpy(buf, utf8str, len);
-				buf[len] = '\0';
-				if (len < utf8strlen)
-					for (i = len; i && i > len - 3; buf[--i] = '.')
-						;		/* NOP */
-
-				if (render)
+				drw_font_getexts(usedfont, "...", 3, &ellipsisw, NULL);
+				while (len && (ew > w || ellipsisw > w - ew))
 				{
-					ty = y + (h - usedfont->h) / 2 + usedfont->xfont->ascent;
-					XftDrawStringUtf8(d, &drw->scheme[invert ? ColBg : ColFg],
-									  usedfont->xfont, x, ty, (XftChar8 *) buf, len);
+					do
+					{
+						len--;
+					}
+					while (len && (utf8str[len] & 0xc0) == 0x80);
+					drw_font_getexts(usedfont, utf8str, len, &ew, NULL);
 				}
-				x += ew;
-				w -= ew;
+				memcpy(buf, utf8str, len);
+				if (ellipsisw <= w - ew)
+				{
+					memcpy(buf + len, "...", 3);
+					len += 3;
+				}
+				text = "";
 			}
+			else if (render)
+				memcpy(buf, utf8str, len);
+			if (render)
+			{
+				ty = y + ((int)h - (int)usedfont->h) / 2 + usedfont->xfont->ascent;
+				XftDrawStringUtf8(d, &drw->scheme[invert ? ColBg : ColFg],
+								  usedfont->xfont, x, ty, (XftChar8 *) buf, len);
+			}
+			if (!render && ew > (unsigned int)(INT_MAX - x))
+				return INT_MAX;
+			x += ew;
+			w -= ew;
 		}
 
 		if (!*text)
 		{
 			break;
 		}
+		else if (utf8strlen >= 64 && !nextfont)
+			continue;
 		else if (nextfont)
 		{
 			charexists = 0;
@@ -423,7 +450,7 @@ drw_font_getexts(Fnt * font, const char *text, unsigned int len, unsigned int *w
 
 	XftTextExtentsUtf8(font->dpy, font->xfont, (XftChar8 *) text, len, &ext);
 	if (w)
-		*w = ext.xOff;
+		*w = ext.xOff < 0 ? INT_MAX : ext.xOff;
 	if (h)
 		*h = font->h;
 }

@@ -19,7 +19,8 @@ options:
 .c.o:
 	$(CC) -c $(CFLAGS) $<
 
-$(OBJ): arg.h config.mk drw.h
+$(OBJ): arg.h config.mk drw.h util.h
+dmenu.o: config.h
 
 dmenu: dmenu.o drw.o util.o
 	$(CC) -o $@ dmenu.o drw.o util.o $(LDFLAGS)
@@ -32,7 +33,7 @@ clean:
 
 dist: clean
 	mkdir -p dmenu-$(VERSION)
-	cp LICENSE Makefile README arg.h config.mk dmenu.1\
+	cp LICENSE Makefile README.md arg.h config.h config.mk dmenu.1\
 		drw.h util.h dmenu_path dmenu_run stest.1 $(SRC)\
 		dmenu-$(VERSION)
 	tar -cf dmenu-$(VERSION).tar dmenu-$(VERSION)
